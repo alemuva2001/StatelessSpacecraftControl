@@ -12,7 +12,7 @@ Iz = [0.0040 0.060 0.040 0.080 0.080 0.060]; %kg m^2
 
 %Notice that the gravity gradient only stabilizes the system if the inertia
 %of the axis that points towards the center of the massive body has the minimal inertia
-I = diag([Ix(3), Iy(3), Iz(3)]); %kg m^2
+I = diag([Ix(1), Iy(1), Iz(1)]); %kg m^2
 
 %Earth properties
 G = 6.673e-20; %km^3/s^2
@@ -25,7 +25,7 @@ n = sqrt(G*M_t/R^3);
 
 %Initial Conditions
 %w_0 = [0, 0, n]'; %rad/s
-w_0 = [1e-6, n, 1e-6]'; %rad/s
+w_0 = [1e-6, 1e-6, n]'; %rad/s
 A_0 = eye(3);
 
 orthonormalize = 0; %1-desactivated   0-activated
