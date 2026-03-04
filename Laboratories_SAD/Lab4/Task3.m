@@ -1,6 +1,6 @@
 %% LAB 4: Attitude Kinematics
 clc;
-%close all;
+close all;
 clear;
 set(0,'DefaultFigureWindowStyle','alwaysontop');
 
@@ -89,10 +89,12 @@ subplot(2,1,1)
 plot(result.tout, h_norm,'LineWidth',2);
 grid on
 grid minor
+legend('Angular momentum')
 subplot(2,1,2)
 plot(result.tout, T,'LineWidth',2);
 grid on
 grid minor
+legend('Kinetic energy')
 
 %% Validation Quaternions kinematic
 norma = zeros(N,1);
@@ -109,7 +111,7 @@ grid minor
 legend('norm');
 
 %% Animation
-%animate_cubo(result.tout,roll,pitch,yaw,2);
+animate_cubo(result.tout,roll,pitch,yaw,2);
 
 
 

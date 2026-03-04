@@ -13,7 +13,7 @@ Iz = 0.0250; %kg m^2
 I = diag([Ix, Iy, Iz]); %kg m^2
 
 %Initial Conditions
-w_0 = [0.3, 0.15, 0.6]'; %rad/s
+w_0 = [0.5, 0.0, 0.0]'; %rad/s
 eul_0 = [0, 0, 0]'; %rad
 
 %Simulation options
@@ -41,7 +41,7 @@ roll = result.euler(:,1);
 pitch = result.euler(:,2);
 yaw = result.euler(:,3);
 
-figure()
+figure('Name','Angulos de Euler [rad]')
 subplot(3,1,1)
 plot(result.tout,roll,'LineWidth',2)
 grid on
@@ -67,7 +67,7 @@ A = zeros(3,3,N);
 
 for i=1:length(result.tout)
     A(:,:,i) = [cos(yaw(i))*cos(roll(i))-sin(yaw(i))*sin(roll(i))*sin(pitch(i)) cos(yaw(i))*sin(roll(i))+sin(yaw(i))*cos(roll(i))*sin(pitch(i)) -sin(yaw(i))*cos(pitch(i));...
-               -sin(pitch(i))*cos(pitch(i)) cos(roll(i))*cos(pitch(i)) sin(pitch(i));...
+               -sin(roll(i))*cos(pitch(i)) cos(roll(i))*cos(pitch(i)) sin(pitch(i));...
                 sin(yaw(i))*cos(roll(i))+cos(yaw(i))*sin(roll(i))*sin(pitch(i)) sin(yaw(i))*sin(roll(i))-cos(yaw(i))*cos(roll(i))*sin(pitch(i)) cos(pitch(i))*cos(yaw(i))];
 
     err(i) = norm(A(:,:,i)'*A(:,:,i)-eye(3));
@@ -108,13 +108,25 @@ subplot(2,1,1)
 plot(result.tout, h_norm,'LineWidth',2);
 grid on
 grid minor
+legend('Angular momentum')
 subplot(2,1,2)
 plot(result.tout, T,'LineWidth',2);
 grid on
 grid minor
+legend('Kinetic energy')
 
 %% Animation
-animate_cubo(result.tout,roll,pitch,yaw,1);
+% Mapeo físico correcto según las ecuaciones 3-1-2 del enunciado:
+% euler(:,1) es Phi (giro en Z -> Yaw físico)
+% euler(:,2) es Theta (giro en X -> Roll físico)
+% euler(:,3) es Psi (giro en Y -> Pitch físico)
+
+yaw_anim = result.euler(:,1);   % Phi
+roll_anim = result.euler(:,2);  % Theta
+pitch_anim = result.euler(:,3); % Psi
+
+% Llama a la animación con las variables corregidas
+animate_cubo(result.tout, roll_anim, pitch_anim, yaw_anim, 1);
 
 
 

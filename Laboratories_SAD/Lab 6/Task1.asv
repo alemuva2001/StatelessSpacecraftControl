@@ -6,24 +6,22 @@ set(0,'DefaultFigureWindowStyle','alwaysontop');
 
 %% Data
 %Parameters
-Ix = [0.0700 0.040]; %kg m^2
-Iy = [0.0550 0.060]; %kg m^2 
-Iz = [0.0250 0.080]; %kg m^2
+Ix = [0.0700 0.060]; %kg m^2
+Iy = [0.0550 0.080]; %kg m^2 
+Iz = [0.0250 0.040]; %kg m^2
 
 I = diag([Ix(1), Iy(1), Iz(1)]); %kg m^2
 
 %Earth properties
-G = 6.673e-20; %km^3/s^2
-M_t = 5.973e24; %kg
-Rt = 6378.137; %km
-H = 500; %km
-R = Rt+H;
+G = 6.673*10e-20; %km^3/s^2
+M_t = 5.973*10e24; %kg
+R = 6378137; %m
 
 n = sqrt(G*M_t/R^3);
 
 %Initial Conditions
-%w_0 = [0, 0, n]'; %rad/s
-w_0 = [1e-6, 1e-6, n]'; %rad/s
+w_0 = [0, 0, n]'; %rad/s
+%w_0 = [10e-6, 10e-6, n]'; %rad/s
 A_0 = eye(3);
 
 orthonormalize = 0; %1-desactivated   0-activated
@@ -33,10 +31,10 @@ sim_options.SolverType = 'Fixed-step';
 sim_options.Solver = 'ode4';
 sim_options.FixedStep = '0.1';
 sim_options.StartTime = '0';
-sim_options.StopTime = '6000';
+sim_options.StopTime = '100';
 
 %% Model Simulation
-result = sim('L6_sim2', sim_options);
+result = sim('L4_sim1', sim_options);
 
 %% Computations and plots
 N = length(result.tout);
@@ -77,7 +75,7 @@ att_error_norm = zeros(N,1);
 
 for i = 1:N
     t = result.tout(i);
-    w_B = result.w(i,:)';
+    w_B = result.w(i,:);
     A_BN = result.A(:,:,i);
 
     A_LN = [cos(n*t) sin(n*t) 0;...
@@ -90,20 +88,11 @@ for i = 1:N
     att_error_norm(i) = norm(A_BL-eye(3));
 
     %Angular velocity error
-    w_BL_error(:,i) = (w_B - A_BL*w_LN)';
+    w_BL_error(i,:) = (w_B - A_BL*w_L)';
 end
 
-figure('Name','Pointing Error')
-subplot(2,1,1)
-plot(result.tout, att_error_norm,'LineWidth',2);
-grid on
-grid minor
-legend('Attitude error')
-subplot(2,1,2)
-plot(result.tout, w_BL_error, 'LineWidth',2);
-grid on
-grid minor
-legend('\omega_x error', '\omega_y error', '\omega_z error');
+figure('Pointing Error')
+
 
 
 %Euler angles for visualization
@@ -165,7 +154,7 @@ grid minor
 legend('Kinetic energy')
 
 %% Animation
-animate_cubo(result.tout,roll,pitch,yaw,100);
+animate_cubo(result.tout,roll,pitch,yaw,2);
    
 
 

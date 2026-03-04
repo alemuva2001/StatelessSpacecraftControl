@@ -7,14 +7,16 @@ set(0,'DefaultFigureWindowStyle','alwaysontop');
 %% Data
 %Parameters
 Ix = 0.0700; %kg m^2
-Iy = 0.055; %kg m^2 
-Iz = 0.025; %kg m^2
+Iy = 0.0550; %kg m^2 
+Iz = 0.0250; %kg m^2
 
 I = diag([Ix, Iy, Iz]); %kg m^2
 
 %Initial Conditions
 w_0 = [0.45, 0.52, 0.55]'; %rad/s
 A_0 = eye(3);
+
+orthonormalize = 0; %1-desactivated   0-activated
 
 %Simulation options
 sim_options.SolverType = 'Fixed-step';
@@ -41,8 +43,8 @@ err = zeros(N,1);
 d = zeros(N,1);
 
 for i=1:length(result.tout)
-    err(i) = norm(result.A(i)'*result.A(i));
-    d(i) = det(result.A(i));
+    err(i) = norm(result.A(:,:,i)'*result.A(:,:,i)-eye(3));
+    d(i) = det(result.A(:,:,i));
 end
 
 figure();
@@ -109,10 +111,12 @@ subplot(2,1,1)
 plot(result.tout, h_norm,'LineWidth',2);
 grid on
 grid minor
+legend('Angular momentum')
 subplot(2,1,2)
 plot(result.tout, T,'LineWidth',2);
 grid on
 grid minor
+legend('Kinetic energy')
 
 %% Animation
 animate_cubo(result.tout,roll,pitch,yaw,2);

@@ -11,9 +11,9 @@ function animate_cubo(tiempo, roll_grados, pitch_grados, yaw_grados, velocidad)
 %
 % Argumentos de Entrada:
 %   tiempo       - Vector (Nx1) con las marcas de tiempo de la simulación.
-%   roll_grados  - Vector (Nx1) de ángulos de alabeo (Roll) en grados.
-%   pitch_grados - Vector (Nx1) de ángulos de cabeceo (Pitch) en grados.
-%   yaw_grados   - Vector (Nx1) de ángulos de guiñada (Yaw) en grados.
+%   roll_grados  - Vector (Nx1) de ángulos de alabeo (Roll) en radianes.
+%   pitch_grados - Vector (Nx1) de ángulos de cabeceo (Pitch) en radianes.
+%   yaw_grados   - Vector (Nx1) de ángulos de guiñada (Yaw) en radianes.
 %   velocidad    - Multiplicador de la velocidad de reproducción.
 %                  1.0 = Tiempo real.
 %                  2.0 = Doble de velocidad.
@@ -142,7 +142,7 @@ for i = 1:num_puntos
     set(h_label_x, 'Position', eje_x_rotado(2,:));
     set(h_label_y, 'Position', eje_y_rotado(2,:));
     set(h_label_z, 'Position', eje_z_rotado(2,:));
-    set(title_handle, 'String', sprintf('Tiempo: %.2fs | Yaw: %.1f° | Pitch: %.1f° | Roll: %.1f°', ...
+    set(title_handle, 'String', sprintf('Tiempo: %.2fs | Roll: %.1f° | Pitch: %.1f° | Yaw: %.1f°', ...
         tiempo(i), yaw_grados(i), pitch_grados(i), roll_grados(i)));
     
     % --- Pausa para controlar la velocidad ---
