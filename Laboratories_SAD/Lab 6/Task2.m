@@ -55,8 +55,8 @@ err = zeros(N,1);
 d = zeros(N,1);
 
 for i=1:length(result.tout)
-    err(i) = norm(result.A(:,:,i)'*result.A(:,:,i)-eye(3));
-    d(i) = det(result.A(:,:,i));
+    err(i) = norm(result.A_BN(:,:,i)'*result.A_BN(:,:,i)-eye(3));
+    d(i) = det(result.A_BN(:,:,i));
 end
 
 figure();
@@ -106,9 +106,9 @@ pitch = zeros(N,1);
 yaw = zeros(N,1);
 
 for i=1:N
-    roll(i) = atan2(result.A(3,2,i),result.A(3,3,i));
-    pitch(i) = atan2(-result.A(3,1,i),sqrt(result.A(3,2,i)^2+result.A(3,3,i)^2));
-    yaw(i) = atan2(result.A(2,1,i),result.A(1,1,i));
+    roll(i) = atan2(result.A_BN(3,2,i),result.A_BN(3,3,i));
+    pitch(i) = atan2(-result.A_BN(3,1,i),sqrt(result.A_BN(3,2,i)^2+result.A_BN(3,3,i)^2));
+    yaw(i) = atan2(result.A_BN(2,1,i),result.A_BN(1,1,i));
 end
 
 figure()
