@@ -1,0 +1,324 @@
+%clc;
+close all;
+clear;
+set(0,'DefaultFigureWindowStyle','alwaysontop');
+
+%% %%%%%%%%%%%%%%%%%%%%%%
+%%-TAREAS PARA MAÑANA-%%
+%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% Comprobar las putas convenciones para que todo cuadre
+% 
+% Una vez funcione el controlador en los 3 ejes hay que pasar a event-based sensor...
+% Y alimentar la SNN...
+% 
+
+%% Data
+%Sensor Parameters
+FOV = deg2rad(60);
+
+W = 1024; %Horizontal resolution [px]
+H = 1024; %Vertical resolution [px]
+
+f = W/(2*tan(FOV/2)); %Focal distance
+
+sigma = 1;
+
+cx = W/2;
+cy = H/2;
+
+% CameraBody Parameters
+Ix = [0.080 0.080 0.060 0.060 0.040 0.040]; %[kg*m^2]
+Iy = [0.060 0.040 0.080 0.040 0.060 0.080]; %[kg*m^2]
+Iz = [0.040 0.060 0.040 0.080 0.080 0.060]; %[kg*m^2]
+
+I = diag([Ix(5), Iy(5), Iz(5)]); %[kg*m^2]
+
+%Initial conditions
+w_0 = [0.01, 0.0, 0.0]'; %[rad/s]
+
+roll = deg2rad(0); 
+pitch = deg2rad(0); 
+yaw = deg2rad(0);
+
+R_c = eul2rotm([yaw, pitch, roll]); %Camera attitude in the space
+q_0 = eul2quat([yaw, pitch, roll]);
+A_0 = R_c;
+
+P0 = diag([1e-4, 1e-4, 1e-4, 1e-4, 1e-3, 1e-3, 1e-3]); %Covariance matrix initialization
+
+%Stars Generation
+r = 100;
+[stars, s_intensity] = generateStars(r, 1000, 5000 );
+
+% stars_ = load("Starfield_Test.mat");
+% stars = stars_.stars;
+
+% visualizeCelestialSpace(stars, s_intensity)
+
+figure('Name','Star Field')
+scatter3(stars(:,1),stars(:,2),stars(:,3),50*s_intensity,'filled')
+axis('equal')
+hold on; grid on; grid minor;
+drawCamera(R_c);
+
+% Controller Parameters
+% X-Axis
+Kp_x = 1e-2;
+Kd_x = 1e-2; %4e-2; 
+Ki_x = 0.0;
+
+% Y-Axis
+Kp_y = 1e-2; %9.6e-3; %5e-3;
+Kd_y = 1e-2; %6.8e-2; %7e-2; 
+Ki_y = 0.0; 
+
+% Z-Axis
+Kp_z = 1e-2; %1e-3;
+Kd_z = 1e-2; %5e-2; %4e-1;
+Ki_z = 0.0; 
+
+% Controller GEMINI
+wn = 0.2; zeta = sqrt(2)/2;
+Ix = I(1,1); Iy = I(2,2) ; Iz = I(3,3);
+
+Kp_x = Ix * (wn^2);       Kd_x = Ix * 2 * zeta * wn;
+Kp_y = Iy * (wn^2);       Kd_y = Iy * 2 * zeta * wn;
+Kp_z = Iz * (wn^2);       Kd_z = Iz * 2 * zeta * wn;
+
+%Simulation options
+sim_time = 200;
+dt = 0.1;
+
+sim_options.SolverType = 'Fixed-step';
+sim_options.Solver = 'ode4';
+sim_options.FixedStep = string(dt);
+sim_options.StartTime = '0';
+sim_options.StopTime = 'sim_time';
+
+%% Model Simulation
+tic;
+result = sim('CameraModel.slx', sim_options);
+fprintf("Simulation complete: %.3f s\n",toc)
+
+%% Results
+
+N = length(stars);
+time_max = length(result.tout);
+stars_c = result.starsSeen;
+u = zeros(N,time_max);
+v = zeros(N,time_max);
+
+
+%Search for stars in the image
+tic
+for t = 1:time_max
+    % Extraer slice una sola vez
+    frame = result.image(:,:,t);
+    
+    % Indexación lógica vectorizada — reemplaza el doble bucle i,j
+    [rows, cols] = find(frame > 160);
+    
+    % Limitar a N detecciones máximas
+    n_detected = min(length(rows), N);
+    
+    u(1:n_detected, t) = cols(1:n_detected);
+    v(1:n_detected, t) = rows(1:n_detected);
+    
+    %fprintf('Instante %d/%d — %d puntos detectados\n', t, time_max, n_detected);
+end
+
+fprintf('Stars search: %.4f s\n', toc);
+%
+% tic
+% k = 1;
+% for t=1:time_max
+%     for i = 1:N
+%         if stars_c(i,3) > 0
+%             if (result.u(t,i)>0 && result.u(t,i)<=W) && (result.v(t,i)>0 && result.v(t,i)<=H)
+%                 u(k,t) = result.u(t,i);
+%                 v(k,t) = result.v(t,i);
+%                 k = k + 1;
+%             end
+%         end
+%     end
+%     k = 1;
+% end
+% disp(toc)
+
+%% -- Captured Image --
+% tic
+% figure('Name','Captured Image')
+% hold on;
+% for t=1:time_max
+%     intensity = t/time_max;
+%     color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
+%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
+%     axis([0,W,0,H])
+% end
+% plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
+% plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
+% legend('Trajectory', 'Initial', 'End','Location','best')
+% set(gca, 'YDir', 'reverse');
+% daspect([1 1 1])
+% fprintf("Sequence of captured images: %.3f s\n",toc)
+% 
+% tic
+% figure('Name','Image motion over time')
+% scatter3(u,v,result.tout, 'filled')
+% hold on; grid on; grid minor;
+% disp(toc)
+
+%% -- Prediction comparison --
+% u = result.u';
+% v = result.v';
+% 
+% u_pred = result.u_meas';
+% v_pred = result.v_meas';
+% 
+% tic
+% figure('Name','Prediction Image')
+% hold on;
+% for t=1:time_max
+%     intensity = t/time_max;
+%     color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
+%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
+% 
+%     color_pred = [1, min([1-intensity,0.8]), min([1-intensity,0.8])];
+%     plot(u_pred(:,t),v_pred(:,t),'LineStyle','none','Marker','.','Color',color_pred)
+% 
+%     axis([0,W,0,H])
+% end
+% plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
+% plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
+% 
+% plot(u_pred(:,2),v_pred(:,2),'LineStyle','none','Marker','o','Color','k')
+% plot(u_pred(:,end),v_pred(:,end),'LineStyle','none','Marker','o','Color','c')
+% 
+% legend('Trajectory', 'Initial', 'End','Location','best')
+% set(gca, 'YDir', 'reverse');
+% daspect([1 1 1])
+% fprintf("Prediction comparison: %.3f s\n",toc)
+
+
+%% -- Angular velocities --
+tic;
+figure();
+plot(result.tout, result.w,'LineWidth',2)
+hold on
+plot(result.tout, result.w_corr,'LineWidth',2,'LineStyle','--')
+grid on
+grid minor
+legend('wx','wy','wz','wx_p', 'wy_p', 'wz_p');
+fprintf("Angular Velocities: %.3f s\n",toc)
+
+% -- Euler Angles --
+%Euler angles for visualization from DCM
+roll = zeros(time_max,1);
+pitch = zeros(time_max,1);
+yaw = zeros(time_max,1);
+eul = zeros(3,1);
+
+tic
+for i=1:time_max
+    eul = rotm2eul(result.A_BN(:,:,i));
+    roll(i) = eul(3); %atan2(result.A_BN(3,2,i),result.A_BN(3,3,i));
+    pitch(i) = eul(2); %atan2(-result.A_BN(3,1,i),sqrt(result.A_BN(3,2,i)^2+result.A_BN(3,3,i)^2));
+    yaw(i) = eul(1); %atan2(result.A_BN(2,1,i),result.A_BN(1,1,i));
+end
+
+figure()
+subplot(3,1,1)
+plot(result.tout,roll,'LineWidth',2)
+grid on
+grid minor
+legend('roll')
+
+subplot(3,1,2)
+plot(result.tout,pitch,'LineWidth',2)
+grid on
+grid minor
+legend('pitch')
+
+subplot(3,1,3)
+plot(result.tout,yaw,'LineWidth',2)
+grid on
+grid minor
+legend('yaw')
+
+fprintf("Euler angles: %.3f s\n",toc)
+
+
+%% Animation
+% pause;
+% figure()
+% 
+% for t = 1:time_max
+%     delete(line);
+% 
+%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color','b')
+%     axis([0,W,0,H])
+%     set(gca, 'YDir', 'reverse');
+%     daspect([1 1 1])
+% 
+%     title(sprintf('Tiempo transcurrido: %.2f s', t*dt));
+% 
+%     F(t)=getframe(gcf);
+% end
+% 
+% F=F(2:time_max-1);
+% hold off
+% 
+% %Video Creation
+% video = VideoWriter('test1', 'MPEG-4');
+% video.FrameRate = 30;
+% open(video)
+% writeVideo(video, F());
+% close(video);
+
+%% Quaterniones 
+q = result.q_corr;
+
+tic;
+figure();
+subplot(4,1,1)
+plot(result.tout, result.q(:,1),'LineWidth',1.5)
+hold on
+plot(result.tout, -result.q_pred(:,1),'LineStyle','--','LineWidth',1.5)
+plot(result.tout, -q(:,1),'LineStyle',':','LineWidth',1.5)
+
+subplot(4,1,2)
+plot(result.tout,result.q(:,2),'LineWidth',1.5)
+hold on
+plot(result.tout, result.q_pred(:,2),'LineStyle','--','LineWidth',1.5)
+plot(result.tout, q(:,2),'LineStyle',':','LineWidth',1.5)
+
+subplot(4,1,3)
+plot(result.tout, result.q(:,3),'LineWidth',1.5)
+hold on
+plot(result.tout, result.q_pred(:,3),'LineStyle','--','LineWidth',1.5)
+plot(result.tout, q(:,3),'LineStyle',':','LineWidth',1.5)
+
+subplot(4,1,4)
+plot(result.tout, result.q(:,4),'LineWidth',1.5)
+hold on
+plot(result.tout, result.q_pred(:,4),'LineStyle','--','LineWidth',1.5)
+plot(result.tout, q(:,4),'LineStyle',':','LineWidth',1.5)
+
+legend('Real', 'Prediccion', 'Corregido')
+fprintf("Quaternions: %.3f s\n",toc)
+
+%% Error y T_control
+
+tic;
+figure();
+subplot(2,1,1)
+plot(result.tout, result.error(:,2:4),'LineWidth',1.5)
+grid on; grid minor;
+legend('e_{q2}', 'e_{q3}', 'e_{q4}','Location','best')
+
+subplot(2,1,2)
+plot(result.tout,result.T_control,'LineWidth',1.5)
+grid on; grid minor;
+fprintf("Error y T_control: %.3f s\n",toc)
+legend('T_x', 'T_y', 'T_z','Location','best')
