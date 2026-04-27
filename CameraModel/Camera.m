@@ -147,22 +147,22 @@ fprintf('Stars search: %.4f s\n', toc);
 % disp(toc)
 
 %% -- Captured Image --
-% tic
-% figure('Name','Captured Image')
-% hold on;
-% for t=1:time_max
-%     intensity = t/time_max;
-%     color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
-%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
-%     axis([0,W,0,H])
-% end
-% plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
-% plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
-% legend('Trajectory', 'Initial', 'End','Location','best')
-% set(gca, 'YDir', 'reverse');
-% daspect([1 1 1])
-% fprintf("Sequence of captured images: %.3f s\n",toc)
-% 
+tic
+figure('Name','Captured Image')
+hold on;
+for t=1:time_max
+    intensity = t/time_max;
+    color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
+    plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
+    axis([0,W,0,H])
+end
+plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
+plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
+legend('Trajectory', 'Initial', 'End','Location','best')
+set(gca, 'YDir', 'reverse');
+daspect([1 1 1])
+fprintf("Sequence of captured images: %.3f s\n",toc)
+
 % tic
 % figure('Name','Image motion over time')
 % scatter3(u,v,result.tout, 'filled')
@@ -172,33 +172,33 @@ fprintf('Stars search: %.4f s\n', toc);
 %% -- Prediction comparison --
 % u = result.u';
 % v = result.v';
-% 
-% u_pred = result.u_meas';
-% v_pred = result.v_meas';
-% 
-% tic
-% figure('Name','Prediction Image')
-% hold on;
-% for t=1:time_max
-%     intensity = t/time_max;
-%     color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
-%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
-% 
-%     color_pred = [1, min([1-intensity,0.8]), min([1-intensity,0.8])];
-%     plot(u_pred(:,t),v_pred(:,t),'LineStyle','none','Marker','.','Color',color_pred)
-% 
-%     axis([0,W,0,H])
-% end
-% plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
-% plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
-% 
-% plot(u_pred(:,2),v_pred(:,2),'LineStyle','none','Marker','o','Color','k')
-% plot(u_pred(:,end),v_pred(:,end),'LineStyle','none','Marker','o','Color','c')
-% 
-% legend('Trajectory', 'Initial', 'End','Location','best')
-% set(gca, 'YDir', 'reverse');
-% daspect([1 1 1])
-% fprintf("Prediction comparison: %.3f s\n",toc)
+
+u_pred = result.u_meas';
+v_pred = result.v_meas';
+
+tic
+figure('Name','Prediction Image')
+hold on;
+for t=1:time_max
+    intensity = t/time_max;
+    color = [min([1-intensity,0.8]), min([1-intensity,0.8]), min([1-intensity,0.8])];
+    plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color',color)
+
+    color_pred = [1, min([1-intensity,0.8]), min([1-intensity,0.8])];
+    plot(u_pred(:,t),v_pred(:,t),'LineStyle','none','Marker','.','Color',color_pred)
+
+    axis([0,W,0,H])
+end
+plot(u(:,1),v(:,1),'LineStyle','none','Marker','*','Color','r')
+plot(u(:,end),v(:,end),'LineStyle','none','Marker','*','Color','g')
+
+plot(u_pred(:,2),v_pred(:,2),'LineStyle','none','Marker','o','Color','r')
+plot(u_pred(:,end),v_pred(:,end),'LineStyle','none','Marker','o','Color','g')
+
+legend('Trajectory', 'Initial', 'End','Location','best')
+set(gca, 'YDir', 'reverse');
+daspect([1 1 1])
+fprintf("Prediction comparison: %.3f s\n",toc)
 
 
 %% -- Angular velocities --
@@ -251,20 +251,20 @@ fprintf("Euler angles: %.3f s\n",toc)
 
 %% Animation
 % pause;
-% figure()
-% 
-% for t = 1:time_max
-%     delete(line);
-% 
-%     plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color','b')
-%     axis([0,W,0,H])
-%     set(gca, 'YDir', 'reverse');
-%     daspect([1 1 1])
-% 
-%     title(sprintf('Tiempo transcurrido: %.2f s', t*dt));
-% 
-%     F(t)=getframe(gcf);
-% end
+figure()
+
+for t = 1:time_max
+    delete(line);
+
+    plot(u(:,t),v(:,t),'LineStyle','none','Marker','.','Color','b')
+    axis([0,W,0,H])
+    set(gca, 'YDir', 'reverse');
+    daspect([1 1 1])
+
+    title(sprintf('Tiempo transcurrido: %.2f s', t*dt));
+
+    F(t)=getframe(gcf);
+end
 % 
 % F=F(2:time_max-1);
 % hold off
