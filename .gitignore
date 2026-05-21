@@ -1,0 +1,20 @@
+# Entornos Virtuales de Python
+.venv/
+venv/
+env/
+
+# Carpetas de datos locales
+datos/
+*.mat
+*.npy
+
+# Archivos compilados y caché de Python
+__pycache__/
+*.pyc
+
+# Archivos basura de macOS
+.DS_Store
+
+# Archivos de guardado automático de MATLAB/Simulink
+*.asv
+*.slxc

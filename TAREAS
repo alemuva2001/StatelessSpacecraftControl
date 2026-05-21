@@ -1,0 +1,13 @@
+TAREAS PENDIENTES
+
+- Crear la SNN
+
+- Crear los datasets de entrenamiento supervisado
+
+- Conectar python con matlab para evaluar el desempeño
+
+- Reentrenar la red con RL para ver si mejora los resultados
+
+- Sustituir el PID por la SNN
+
+- Comparar resultados
