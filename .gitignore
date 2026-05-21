@@ -18,3 +18,4 @@ __pycache__/
 # Archivos de guardado automático de MATLAB/Simulink
 *.asv
 *.slxc
+*.pdf
