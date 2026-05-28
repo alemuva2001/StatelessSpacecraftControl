@@ -8,18 +8,14 @@ set(groot, 'defaultTextInterpreter', 'latex');
 set(groot, 'defaultAxesTickLabelInterpreter', 'latex');
 set(groot, 'defaultLegendInterpreter', 'latex');
 
-% 2. Configuración global de tamaños de fuente para "Papers"
+% 2. Configuración global de tamaños de fuente
 set(groot, 'defaultAxesFontSize', 14);   % Tamaño de los números en los ejes
 set(groot, 'defaultTextFontSize', 16);   % Tamaño de las etiquetas (labels)
 set(groot, 'defaultLegendFontSize', 14); % Tamaño del texto en las leyendas
 
-%% %%%%%%%%%%%%%%%%%%%%%%
-%%-TAREAS PARA MAÑANA-%%
-%%%%%%%%%%%%%%%%%%%%%%%%%
-%
 % Configurar SNN
 USE_SNN = 1;
-% 
+
 %% Data
 % Sensor Parameters
 FOV = deg2rad(60);
@@ -95,7 +91,7 @@ Kp_z = Iz * (wn^2);       Kd_z = Iz * 2 * zeta * wn;    Ki_z = 0;%wn/10*Kp_z;
 
 % Simulation options
 sim_time = 100;        % Para perturbaciones
-sim_time_ = sim_time;  % Para simulacion
+sim_time_ = 150; %sim_time;  % Para simulacion
 dt = 0.1;
 
 %Perturbations
@@ -136,7 +132,6 @@ stars_c = result.starsSeen;
 u = zeros(N,time_max);
 v = zeros(N,time_max);
 
-
 % Search for stars in the image
 tic
 for t = 1:time_max
@@ -156,22 +151,6 @@ for t = 1:time_max
 end
 
 fprintf('Stars search: %.4f s\n', toc);
-%
-% tic
-% k = 1;
-% for t=1:time_max
-%     for i = 1:N
-%         if stars_c(i,3) > 0
-%             if (result.u(t,i)>0 && result.u(t,i)<=W) && (result.v(t,i)>0 && result.v(t,i)<=H)
-%                 u(k,t) = result.u(t,i);
-%                 v(k,t) = result.v(t,i);
-%                 k = k + 1;
-%             end
-%         end
-%     end
-%     k = 1;
-% end
-% disp(toc)
 
 %% -- Captured Image --
 % tic
@@ -254,7 +233,7 @@ legend([h_real, h_pred, h_init_real, h_end_real, h_init_pred, h_end_pred], ...
 set(gca, 'YDir', 'reverse', 'TickLabelInterpreter', 'latex');
 daspect([1 1 1])
 
-%exportgraphics(gca, 'PredictionImage.pdf', 'ContentType', 'vector');
+exportgraphics(gca, 'PredictionComparison.pdf', 'ContentType', 'vector');
 
 fprintf("Prediction comparison: %.3f s\n",toc)
 
@@ -264,7 +243,7 @@ tic;
 figure();
 plot(result.tout, result.w,'LineWidth',2)
 hold on
-plot(result.tout, result.w_corr,'LineWidth',2,'LineStyle','--')
+%plot(result.tout, result.w_corr,'LineWidth',2,'LineStyle','--')
 grid on
 grid minor
 
@@ -272,8 +251,8 @@ title("\textbf{Angular Velocities}")
 ylabel("$\omega [rad/s]$")
 xlabel("Time $[s]$")
 
-legend('$w_x$','$w_y$','$w_z$','$w_{pred,x}$', '$w_{pred,y}$', '$w_{pred,z}$');
-%exportgraphics(gca, 'AngularVelocities.pdf', 'ContentType', 'vector');
+legend('$w_x$','$w_y$','$w_z$')%,'$w_{pred,x}$', '$w_{pred,y}$', '$w_{pred,z}$');
+%exportgraphics(gca, 'omega_SNN.pdf', 'ContentType', 'vector');
 fprintf("Angular Velocities: %.3f s\n",toc)
 
 %% -- Euler Angles --
@@ -360,7 +339,7 @@ hold on
 xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
 xline(pt2, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
 xline(pt3, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-plot(result.tout, result.error(:,2:4), 'LineWidth', 1.5)
+plot(result.tout, result.errorR(:,2:4), 'LineWidth', 1.5)
 grid on; grid minor;
 title('\textbf{Quaternion error}','FontSize',18)
 xlabel("Time $[s]$")
@@ -425,7 +404,7 @@ hold off
 % Sincroniza el zoom y el desplazamiento solo en el eje del tiempo (x)
 linkaxes([ax1, ax2, ax3, ax4], 'x');
 
-exportgraphics(f_ErrorTorque, 'ErrorTorque.pdf', 'ContentType', 'vector');
+%exportgraphics(f_ErrorTorque, 'ErrorTorque.pdf', 'ContentType', 'vector');
 
 fprintf("Error y T_control: %.3f s\n", toc)
 %% Representacion de eventos
@@ -450,16 +429,7 @@ set(gca, 'XDir', 'reverse');
 hold on; grid on; grid minor;
 xlabel('Time [s]')
 
-
-%%
-% dV_acc = squeeze(result.dV_acc(120, 162, :));
-% figure();
-% subplot(2,1,1)
-% stairs(result.tout, dV_acc,'LineWidth',1)
-% title('dV Accumulated');
-% subplot(2,1,2)
-% plot(result.tout, squeeze(result.RealImage(squeeze(u(1,end)),squeeze(v(1,end)),:)),'LineWidth',1)
-% title('Image R pixel value');
+exportgraphics(gca, 'Events_SNN.pdf', 'ContentType', 'vector');
 
 %% Animation
 % pause;

@@ -187,7 +187,7 @@ def run_epoch(model, loader, optimizer, criterion, cfg, device, train: bool):
                     raw_loss = criterion(pred_torque, target)
                     
                     # Le damos hasta x3 de importancia a los torques grandes
-                    weight = 1.0 + 10.0 * torch.abs(target)
+                    weight = 1.0 + 50.0 * torch.abs(target)
                     
                     # Acumulamos el error ponderado en lugar del simple
                     loss_chunk = loss_chunk + torch.mean(raw_loss * weight)
@@ -260,7 +260,7 @@ def train():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='min', factor=0.5, patience=3
     )
-    criterion = nn.MSELoss()
+    criterion = nn.MSELoss(reduction='none')
     #criterion = nn.SmoothL1Loss()
 
     os.makedirs(CONFIG['weights_dir'], exist_ok=True)
