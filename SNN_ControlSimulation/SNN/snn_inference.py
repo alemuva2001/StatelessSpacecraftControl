@@ -24,7 +24,6 @@ import os
 import sys
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 _SNN_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SNN_DIR not in sys.path:
@@ -36,11 +35,16 @@ from snn_controller import SpikingSatelliteController, _preprocess_frame
 # CONFIGURATION — must match supervised_train.py
 # =============================================================================
 CONFIG = {
-    'num_steps':   4,
-    'hidden_gru':  128,
-    'input_size':  64,        # square target resolution
-    'data_dir':    '../Data',
-    'weights_dir': '../SNN/Weights',
+    'num_steps':           4,
+    'hidden_gru':          128,
+    'input_size':          256,       # must match supervised_train_NVIDIA.py
+    'use_output_filter':   False,     # the new controller already has recurrent memory
+    'alpha_min':           0.08,      # Suavizado fuerte para colas de frenado y reposo (elimina parpadeo)
+    'alpha_max':           0.45,      # Reacción ágil para picos grandes (sin retraso)
+    'alpha_t_ref':         0.25,      # Fracción del pico a partir de la cual se usa alpha_max
+    'zero_thresh_ratio':   0.005,     # 0.5% del pico: corte microscópico para reposo estricto sin dientes de sierra
+    'data_dir':            '../Data',
+    'weights_dir':         '../SNN/Weights',
 }
 # =============================================================================
 
@@ -48,6 +52,7 @@ _model  = None
 _state  = None
 _stats  = None
 _device = None
+_last_torque = None
 
 
 def initialize(model_path: str = None):
@@ -59,7 +64,14 @@ def initialize(model_path: str = None):
 
     _device = torch.device('cpu')
 
-    stats_path = os.path.join(CONFIG['data_dir'], 'dataset_stats.npz')
+    # Resolver rutas relativas tanto si se ejecuta desde Simulation/, SNN/ o raíz
+    data_dir = CONFIG['data_dir']
+    if not os.path.exists(data_dir):
+        alt_data = os.path.normpath(os.path.join(_SNN_DIR, data_dir))
+        if os.path.exists(alt_data):
+            data_dir = alt_data
+
+    stats_path = os.path.join(data_dir, 'dataset_stats.npz')
     if not os.path.exists(stats_path):
         raise FileNotFoundError(
             f"No se encontró '{stats_path}'.\n"
@@ -72,8 +84,14 @@ def initialize(model_path: str = None):
     print(f"[SNN]   torque_mean = {_stats['torque_mean'].numpy()}")
     print(f"[SNN]   torque_peak = {_stats['torque_peak'].numpy()}")
 
+    # Cargar pesos del modelo
     if model_path is None:
-        model_path = os.path.join(CONFIG['weights_dir'], 'best_model.pth')
+        weights_dir = CONFIG['weights_dir']
+        if not os.path.exists(weights_dir):
+            alt_w = os.path.normpath(os.path.join(_SNN_DIR, weights_dir))
+            if os.path.exists(alt_w):
+                weights_dir = alt_w
+        model_path = os.path.join(weights_dir, 'best_model.pth')
 
     _model = SpikingSatelliteController(
         num_steps=CONFIG['num_steps'],
@@ -81,20 +99,42 @@ def initialize(model_path: str = None):
         learn_beta=True,
     ).to(_device)
 
-    _model.load_state_dict(torch.load(model_path, map_location=_device))
+    try:
+        state_dict = torch.load(model_path, map_location=_device)
+        
+        # Limpiamos el prefijo '_orig_mod.' si el modelo fue entrenado con torch.compile()
+        clean_state_dict = {}
+        for k, v in state_dict.items():
+            if k.startswith('_orig_mod.'):
+                clean_state_dict[k.replace('_orig_mod.', '')] = v
+            else:
+                clean_state_dict[k] = v
+                
+        _model.load_state_dict(clean_state_dict)
+        print(f"[SNN] Modelo cargado desde {model_path}")
+    except FileNotFoundError:
+        print(f"\n[WARNING] No se encontró el modelo en {model_path}.")
+        print("[WARNING] Simulink se ha inicializado con pesos aleatorios. Ignora esto si estás generando datos (USE_SNN=0).")
+    except RuntimeError as exc:
+        raise RuntimeError(
+            "[SNN] El checkpoint no coincide con la arquitectura temporal actual. "
+            "Reentrena con supervised_train.py o supervised_train_NVIDIA.py para generar "
+            "un nuevo best_model.pth."
+        ) from exc
+
     _model.eval()
-    print(f"[SNN] Modelo cargado desde {model_path}")
 
     reset()
     print("[SNN] Listo para inferencia.")
 
 
 def reset():
-    """Reset internal SNN state (LIF memories + GRU). Call at the start of each episode."""
-    global _state
+    """Reset internal SNN state. Call at the start of each episode."""
+    global _state, _last_torque
     if _model is None:
         raise RuntimeError("Llama a initialize() antes de reset().")
     _state = _model.init_state(batch_size=1, device=_device)
+    _last_torque = None
     print("[SNN] Estado interno reiniciado.")
 
 
@@ -108,7 +148,7 @@ def step(raw_event_matrix) -> list:
     Returns:
         [Tx, Ty, Tz]  in Nm
     """
-    global _state
+    global _state, _last_torque
 
     if _model is None or _state is None:
         raise RuntimeError("Llama a initialize() antes de step().")
@@ -121,13 +161,44 @@ def step(raw_event_matrix) -> list:
     tensor_in = _preprocess_frame(arr, CONFIG['input_size'], _device)
 
     with torch.no_grad():
-        torque_norm, _state = _model(tensor_in, _state)
+        torque_norm, _state, metrics = _model(tensor_in, _state)
 
     torque_real = (torque_norm.squeeze().cpu()
                * _stats['torque_peak']
                + _stats['torque_mean'])
-    return torque_real.tolist()
+    torque_real_np = torque_real.numpy().copy()
 
+    if CONFIG.get('use_output_filter', False):
+        # --- FILTRO EMA ADAPTATIVO (AMPLITUD-DEPENDIENTE) ---
+        # Disponible para comparativas, pero desactivado por defecto porque
+        # puede introducir retraso sobre una arquitectura ya recurrente.
+        alpha_min = CONFIG.get('alpha_min', 0.08)
+        alpha_max = CONFIG.get('alpha_max', 0.45)
+        t_ref_ratio = CONFIG.get('alpha_t_ref', 0.25)
+        zero_ratio = CONFIG.get('zero_thresh_ratio', 0.005)
+        peak_np = _stats['torque_peak'].numpy()
+
+        if _last_torque is None:
+            _last_torque = torque_real_np.copy()
+
+        for i in range(3):
+            mag = abs(torque_real_np[i]) / peak_np[i]
+            scale = min(1.0, mag / t_ref_ratio)
+            alpha_i = alpha_min + (alpha_max - alpha_min) * scale
+
+            _last_torque[i] = alpha_i * torque_real_np[i] + (1.0 - alpha_i) * _last_torque[i]
+
+            if abs(_last_torque[i]) < zero_ratio * peak_np[i]:
+                _last_torque[i] = 0.0
+    else:
+        _last_torque = torque_real_np
+
+    return _last_torque.tolist() + [
+        metrics.get('fr_layer1', 0.0), 
+        metrics.get('fr_layer2', 0.0), 
+        metrics.get('fr_layer3', 0.0), 
+        metrics.get('gru_abs', 0.0)
+    ]
 
 # =============================================================================
 # QUICK TEST

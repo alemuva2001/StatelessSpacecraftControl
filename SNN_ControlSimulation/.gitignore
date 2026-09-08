@@ -1,0 +1,47 @@
+# Local environments, credentials and caches
+.venv*/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+.zshrc
+.env
+.env.*
+!.env.example
+
+# Generated MATLAB/Simulink files
+slprj/
+*_ert_rtw/
+*_grt_rtw/
+*.slxc
+*.asv
+*.autosave
+*.slx.original
+
+# Episodes and generated results. Keep the inference normalization metadata.
+/Data/*
+!/Data/dataset_stats.npz
+/Data2/
+/output/
+/output_webcam/
+*.mat
+*.npy
+*.log
+*.mp4
+*.avi
+*.fig
+
+# Local experiment archives and external reference checkout
+/Backup_*/
+/SNN_Version_1(Premeeting)/
+/SNN/neuromorphic_att_est_and_control/
+/SNN/snn_controller_0209.py
+/SNN/visualize_snn.py
+/test_webcam.py
+/webcam_input.py
+/Simulation/run_rl_training.m
+
+# Publish only the selected inference weights, not optimizer/overfit checkpoints.
+/SNN/Weights/*
+!/SNN/Weights/best_model_BEST060926.pth
