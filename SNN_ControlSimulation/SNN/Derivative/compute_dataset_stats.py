@@ -3,7 +3,7 @@ compute_dataset_stats.py
 Calcula y guarda las estadísticas de normalización del dataset.
 Ejecutar UNA VEZ antes de entrenar, o cada vez que se regenere el dataset.
 
-Genera: ../Data/dataset_stats.npz
+Genera: Data/dataset_stats.npz, relativo a la raíz del proyecto
 """
 
 import os
@@ -11,7 +11,7 @@ import glob
 import numpy as np
 import scipy.io
 
-DATA_DIR = '../Data'
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../Data'))
 
 def compute_stats():
     all_t = []

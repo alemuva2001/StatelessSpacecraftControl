@@ -1,3 +1,5 @@
+from pathlib import Path
+DEFAULT_DATA = str(Path(__file__).resolve().parents[2] / "Data")
 import argparse
 import scipy.io
 import matplotlib.pyplot as plt
@@ -6,7 +8,7 @@ import os
 import numpy as np
 
 class DatasetViewer:
-    def __init__(self, data_dir='../Data'):
+    def __init__(self, data_dir=DEFAULT_DATA):
         self.data_dir = data_dir
         
         # Encontrar todos los episodios disponibles
@@ -116,7 +118,7 @@ class DatasetViewer:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Visor interactivo del dataset.')
-    parser.add_argument('-d', '--dir', type=str, default='../Data', help='Directorio de datos (por defecto: ../Data)')
+    parser.add_argument('-d', '--dir', type=str, default=DEFAULT_DATA, help='Directorio de datos (por defecto: Data en la raíz del proyecto)')
     args = parser.parse_args()
     
     viewer = DatasetViewer(args.dir)

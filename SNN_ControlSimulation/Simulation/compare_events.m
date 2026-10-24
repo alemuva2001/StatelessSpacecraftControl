@@ -134,15 +134,15 @@ fig2 = figure('Name', 'DVS Event Playback', 'NumberTitle', 'off', ...
 % Crear subplots
 ax_own = subplot(1, 2, 1);
 h_own = imshow(zeros(H, W, 3), 'Parent', ax_own); 
-title_own = title(ax_own, 'PROPIO  t=0.00s', 'FontSize', 12, 'Interpreter', 'none');
-xlabel(ax_own, 'Verde: ON | Rojo: OFF', 'FontSize', 10);
+title_own = title(ax_own, 'Model  t=0.00s', 'FontSize', 12, 'Interpreter', 'none');
+xlabel(ax_own, 'Green: ON | Red: OFF', 'FontSize', 10);
 
 ax_v2e = subplot(1, 2, 2);
 h_v2e = imshow(zeros(H, W, 3), 'Parent', ax_v2e); 
-title_v2e = title(ax_v2e, 'V2E (frame2events)  t=0.00s', 'FontSize', 12, 'Interpreter', 'none');
-xlabel(ax_v2e, 'Verde: ON | Rojo: OFF', 'FontSize', 10);
+title_v2e = title(ax_v2e, 'V2E  t=0.00s', 'FontSize', 12, 'Interpreter', 'none');
+xlabel(ax_v2e, 'Green: ON | Red: OFF', 'FontSize', 10);
 
-sgtitle('Comparación de Eventos en Tiempo Real', 'FontWeight', 'bold', 'FontSize', 14, 'Interpreter', 'none');
+sgtitle('DVS Model - V2E events comparison', 'FontWeight', 'bold', 'FontSize', 14, 'Interpreter', 'none');
 
 % Determinar retardo aproximado de reproducción
 if N > 1

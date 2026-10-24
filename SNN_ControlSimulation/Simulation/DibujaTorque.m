@@ -23,6 +23,11 @@ legend('$e_{q2}$', '$e_{q3}$', '$e_{q4}$', 'Location', 'best')
 hold off
 
 %%--- EJE X ---
+if isprop(result, 'T_SNN_D') || isfield(result, 'T_SNN_D') || (ismethod(result, 'who') && ismember('T_SNN_D', result.who))
+    T_snn = result.T_SNN_D;
+else
+    T_snn = result.T_control_SNN;
+end
 ax2 = subplot(2, 3, 4); % Guardamos el handle en ax2
 hold on
 xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
@@ -31,7 +36,7 @@ if PD_CONTROLLER
     plot(result.tout, result.T_control_PID(:, 1), 'LineWidth', 1.5, 'Color', '#0072BD') % Azul
 end
 if USE_SNN
-    plot(result.tout, result.T_control_SNN(:, 1), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319') % Naranja rojizo
+    plot(result.tout, T_snn(:, 1), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319') % Naranja rojizo
 end
 grid on; grid minor;
 title('\textbf{Torque Eje X (Roll)}');
@@ -49,7 +54,7 @@ if PD_CONTROLLER
     plot(result.tout, result.T_control_PID(:, 2), 'LineWidth', 1.5, 'Color', '#0072BD')
 end
 if USE_SNN 
-    plot(result.tout, result.T_control_SNN(:, 2), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
+    plot(result.tout, T_snn(:, 2), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
 end
 grid on; grid minor;
 title('\textbf{Torque Eje Y (Pitch)}');
@@ -67,7 +72,7 @@ if PD_CONTROLLER
     plot(result.tout, result.T_control_PID(:, 3), 'LineWidth', 1.5, 'Color', '#0072BD')
 end
 if USE_SNN
-    plot(result.tout, result.T_control_SNN(:, 3), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
+    plot(result.tout, T_snn(:, 3), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
 end
 grid on; grid minor;
 title('\textbf{Torque Eje Z (Yaw)}');

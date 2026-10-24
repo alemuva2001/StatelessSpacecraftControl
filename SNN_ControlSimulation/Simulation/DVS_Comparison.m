@@ -34,17 +34,17 @@ B_init = zeros(size(R_init));
 first_ev_frame = cat(3, R_init, G_init, B_init);
 
 % 2. Configuración de la figura
-f = figure('Name', 'DVS Event Tracker', 'Position', [100, 100, 1000, 450], 'Color', 'w');
+f = figure('Name', 'DVS output', 'Position', [100, 100, 1000, 450], 'Color', 'w');
 
 % Eje izquierdo: Eventos (R=OFF, G=ON)
 ax1 = subplot(1, 2, 1);
 h_ev = imshow(first_ev_frame, 'Parent', ax1); 
-title_ev = title(ax1, 'Eventos (R=OFF, G=ON)', 'FontSize', 12);
+title_ev = title(ax1, 'DVS output (Red=OFF, Green=ON)', 'FontSize', 12);
 
 % Eje derecho: Imagen Real (B/W)
 ax2 = subplot(1, 2, 2);
 h_img = imshow(get_frame_img(img_data, 1), 'Parent', ax2);
-title_img = title(ax2, 'Imagen Real (B/W)', 'FontSize', 12);
+title_img = title(ax2, 'Real Image (B/W)', 'FontSize', 12);
 
 % 3. INICIALIZACIÓN DEL GRABADOR DE VÍDEO
 v = VideoWriter(video_filename, 'MPEG-4'); 
@@ -72,11 +72,11 @@ for i = 1:num_frames
     
     % Actualización gráfica de eventos modificando CData (mucho más rápido)
     set(h_ev, 'CData', current_ev_frame);
-    title_ev.String = sprintf('Eventos - Tiempo: %.3f s', t_current);
+    title_ev.String = sprintf('Events - Time: %.3f s', t_current);
     
     % --- Actualización de la imagen Real ---
     set(h_img, 'CData', get_frame_img(img_data, i));
-    title_img.String = sprintf('Imagen Real - Tiempo: %.3f s', t_current);
+    title_img.String = sprintf('Real Image - Time: %.3f s', t_current);
     
     % 1. Solución Previsualización: Obliga al sistema operativo a refrescar la pantalla
     drawnow;
@@ -100,5 +100,3 @@ for i = 1:num_frames
     % Escribir fotograma en el archivo de vídeo
     writeVideo(v, frame);
 end
-
-% --- CI

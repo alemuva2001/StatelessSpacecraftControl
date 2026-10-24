@@ -13,9 +13,13 @@ set(groot, 'defaultAxesFontSize', 14);   % Tamaño de los números en los ejes
 set(groot, 'defaultTextFontSize', 16);   % Tamaño de las etiquetas (labels)
 set(groot, 'defaultLegendFontSize', 14); % Tamaño del texto en las leyendas
 
-% Configurar SNN
-USE_SNN = 1;
-PD_CONTROLLER = 1;
+% Funcionamiento de la simulación
+Ideal         = 0;  % Usa omega y q_err reales [1] o Usa omega y q_err estimados [0]
+USE_SNN       = 1;  % Compila la red al iniciar la simulación [1] o no la compila [0]
+PD_CONTROLLER = 1;  % Para ajustar la diferencia de timestep entre simulacion y estimacion [1] (Dejar siempre a 1)
+NeuralD       = 0;  % Utiliza como componente derivativa la red [1] o el PD convencional [0]   
+NeuralP       = 1;  % Utiliza como componente proporciona la red [1] o el PD convencional [0]   
+
 %% Data
 % Sensor Parameters
 FOV = deg2rad(60);
@@ -49,7 +53,7 @@ w_0 = [0.0, 0.0, 0.0]'; %[rad/s]
 
 roll = deg2rad(-45+(90)*rand); fprintf("roll: %.2fº\t", rad2deg(roll));
 pitch = deg2rad(-45+(90)*rand); fprintf("pitch: %.2fº\t", rad2deg(pitch));
-yaw = deg2rad(-45+(90)*rand); fprintf("yaw: %.2fº\t", rad2deg(yaw));
+yaw = deg2rad(-45+(90)*rand); fprintf("yaw: %.2fº\n", rad2deg(yaw));
 
 R_c = eul2rotm([yaw, pitch, roll]); % Camera attitude in the space
 q_0 = eul2quat([yaw, pitch, roll]); % Initial attitude
@@ -81,6 +85,7 @@ title('\textbf{Celestial Sphere}', 'FontSize', 18);
 xlabel('Coordinate $X$', 'FontSize', 16);
 ylabel('Coordinate $Y$', 'FontSize', 16);
 zlabel('Coordinate $Z$', 'FontSize', 16);
+set(gca, 'XTickLabel', [], 'YTickLabel', [], 'ZTickLabel', []);
 % exportgraphics(gca, 'Celestial_Sphere.pdf', 'ContentType', 'vector');
 
 % Controller Parameters
@@ -88,9 +93,10 @@ wn = 0.5; zeta = sqrt(2)/2;
 Ix = I(1,1); Iy = I(2,2) ; Iz = I(3,3);
 % Ix = 0; Iy = 0; Iz = 0;
 
-Kp_x = Ix * (wn^2);       Kd_x = Ix * 2 * zeta * wn;    Ki_x = 0;%wn/10*Kp_x; 
-Kp_y = Iy * (wn^2);       Kd_y = Iy * 2 * zeta * wn;    Ki_y = 0;%wn/10*Kp_y;
-Kp_z = Iz * (wn^2);       Kd_z = Iz * 2 * zeta * wn;    Ki_z = 0;%wn/10*Kp_z;
+% El termino proporcional utiliza q_e,v, aproximadamente theta_e/2.
+Kp_x = 2 * Ix * (wn^2);   Kd_x = Ix * 2 * zeta * wn;    Ki_x = 0;%wn/10*Kp_x; 
+Kp_y = 2 * Iy * (wn^2);   Kd_y = Iy * 2 * zeta * wn;    Ki_y = 0;%wn/10*Kp_y;
+Kp_z = 2 * Iz * (wn^2);   Kd_z = Iz * 2 * zeta * wn;    Ki_z = 0;%wn/10*Kp_z;
 
 % Simulation options
 sim_time = 100;        % Para perturbaciones
@@ -99,16 +105,34 @@ dt = 0.01;
 dt_control = dt*10;
 dt = dt*10;
 
+%Filter
+tau_f = 0.1;  % Constante de tiempo del filtro [s]
+alpha_f = exp(-dt_control / tau_f);
+
 %Perturbations
-p1 = randi([-5, 5], 3, 1);
-p2 = randi([-5, 5], 3, 1);
-p3 = randi([-5, 5], 3, 1);
-p_val = [zeros(3,2), p1, zeros(3,2), p2, zeros(3,2), p3, zeros(3,2)] * 1e-3;
+p1 = randi([-8, 8], 3, 1);
+p2 = randi([-8, 8], 3, 1);
+p3 = randi([-8, 8], 3, 1);
+% Implementacion original: tres pulsos rectangulares de 0.1 s.
+% p_val = [zeros(3,2), p1, zeros(3,2), p2, zeros(3,2), p3, zeros(3,2)] * 1e-3;
 
 pt1 = randi([5, int32(sim_time/3-5)]);
 pt2 = randi([int32(sim_time/3+5), int32(sim_time/3+sim_time/3-5)]);
 pt3 = randi([int32(2*sim_time/3+5), int32(sim_time-20)]);
-p_time = [0 pt1-0.1 pt1 pt1+0.1 pt2-0.1 pt2 pt2+0.1 pt3-0.1 pt3 pt3+0.1 1000];
+% p_time = [0 pt1-0.1 pt1 pt1+0.1 pt2-0.1 pt2 pt2+0.1 pt3-0.1 pt3 pt3+0.1 1000];
+
+% Sin indicar tipo, sortea un perfil por eje y por perturbacion.
+% Conserva el impulso absoluto de los pulsos originales; requiere Lookup Flat.
+excitation_options = struct('vary_parameters',true,'recovery_margin',30);
+[p_time, p_val, excitation_info] = generate_excitation_profiles( ...
+    [], [p1 p2 p3]*1e-3, dt, [], sim_time_, true, excitation_options);
+last_disturbance_end = excitation_info.last_disturbance_end;
+disp('Perfiles de excitacion (filas X,Y,Z; columnas perturbaciones 1,2,3):');
+disp(excitation_info.profiles);
+disp('Instantes iniciales por eje [s]:');
+disp(excitation_info.start_times);
+fprintf('Ultima excitacion termina en %.1f s; margen final %.1f s.\n', ...
+    last_disturbance_end,excitation_info.recovery_margin_actual);
 
 % p_val = [0 0  2e-4 0 0 -5e-4 0 0  7e-4 0 0;
 %          0 0 -6e-4 0 0  7e-4 0 0  3e-4 0 0;
@@ -123,6 +147,27 @@ sim_options.Solver = 'ode4';
 sim_options.FixedStep = string(dt);
 sim_options.StartTime = '0';
 sim_options.StopTime = 'sim_time_';
+
+profiles = ["impulse", "long_pulse", "smooth_pulse", ...
+            "double_pulse", "oscillatory", "damped_sine"];
+
+options = struct('vary_parameters', false, 'recovery_margin', 0);
+
+% figure;
+% tiledlayout(3, 2, 'TileSpacing', 'compact');
+% 
+% for k = 1:numel(profiles)
+%     [t, torque] = generate_excitation_profiles( ...
+%         1, [1; 1; 1]*1e-3, 0.01, profiles(k), 7, false, options);
+% 
+%     nexttile;
+%     stairs(t, torque(1,:)*1e3, 'LineWidth', 1.5);
+%     title(strrep(profiles(k), '_', ' '), 'Interpreter', 'none');
+%     xlabel('Time [s]');
+%     ylabel('Torque [mN m]');
+%     xlim([0.8 6.2]);
+%     grid on;
+% end
 
 %% Model Simulation
 tic;
@@ -379,20 +424,23 @@ grid on; grid minor;
 ylabel("$q_3$")
 xlabel("Time $[s]$")
 
-%exportgraphics(f_quat, 'Quaternions.pdf', 'ContentType', 'vector');
+exportgraphics(f_quat, 'Quaternions_Fine.pdf', 'ContentType', 'vector');
 fprintf("Quaternions: %.3f s\n",toc)
 
 %% Error y T_control
 
 tic;
 f_ErrorTorque = figure();
-T_control = result.T_control_D;
 
-ax1 = subplot(2, 3, [1, 2, 3]); % Guardamos el handle en ax1
+ax1 = subplot(4, 1, 1); % Guardamos el handle en ax1
 hold on
-xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt2, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt3, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+if exist('excitation_info','var') && isfield(excitation_info,'start_times')
+    xline(excitation_info.start_times(:,1), 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+    xline(excitation_info.start_times(:,2), 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+    xline(excitation_info.start_times(:,3), 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+elseif exist('pt1','var')
+    xline([pt1, pt2, pt3], 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
+end
 if PD_CONTROLLER 
     plot(result.tout, result.errorR(:,2:4), 'LineWidth', 1.5)
 else
@@ -404,73 +452,74 @@ xlabel("Time $[s]$")
 legend('$e_{q2}$', '$e_{q3}$', '$e_{q4}$', 'Location', 'best')
 hold off
 
-%%--- EJE X ---
-ax2 = subplot(2, 3, 4); % Guardamos el handle en ax2
-hold on
-xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt2, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt3, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-% Extraemos la columna 1 (X)
-if PD_CONTROLLER
-    plot(result.tout_control, T_control(:, 1), 'LineWidth', 1.5, 'Color', '#0072BD') % Azul
-end
-if USE_SNN
-    plot(result.tout, result.T_control_SNN(:, 1), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319') % Naranja rojizo
-end
-grid on; grid minor;
-title('\textbf{Torque Eje X (Roll)}');
-ylabel("$[N]$")
-xlabel("Time $[s]$")
-legend('$T_{x}$ PID', '$T_{x}$ SNN', 'Location', 'best')
-hold off
+% =========================================================================
+% >>> [MARCA PARA ALEJANDRO: FUNCIONES A REEMPLAZAR / SIMPLIFICAR] <<<
+% Anteriormente aquí se llamaba a 'build_torque_comparison' (en Generated/scripts).
+% Implementa aquí tu lógica sencilla para representar los pares de control
+% (por ejemplo, leyendo directamente result.T_control_PID, result.T_SNN_P,
+%  result.T_SNN_D o result.T_control_SNN sobre result.tout, similar a DibujaTorque.m).
+% =========================================================================
+%{
+addpath(fullfile(fileparts(fileparts(mfilename('fullpath'))),'Generated','scripts'));
+torque_comparison = build_torque_comparison(result, NeuralD, NeuralP, Ideal, ...
+    [Kp_x Kp_y Kp_z], I);
 
-%%--- EJE Y ---
-ax3 = subplot(2, 3, 5); % Guardamos el handle en ax3
-hold on
-xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt2, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt3, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-% Extraemos la columna 2 (Y)
-if PD_CONTROLLER
-    plot(result.tout_control, T_control(:, 2), 'LineWidth', 1.5, 'Color', '#0072BD')
+% Conventional total versus ONLY the enabled neural components.
+% NeuralP already includes gyroscopic compensation: do not add it again.
+torque_axes = gobjects(1,3);
+axis_names = {'X','Y','Z'};
+for axis_index = 1:3
+    torque_axes(axis_index) = subplot(4,1,axis_index+1);
+    hold on
+    xline(unique(excitation_info.start_times(:)), 'Color','k', 'LineStyle','--', ...
+        'LineWidth',1.5, 'HandleVisibility','off');
+    if PD_CONTROLLER
+        plot(torque_comparison.time, torque_comparison.pd(:,axis_index), ...
+            'LineWidth',1.5, 'Color','#0072BD', 'DisplayName','PD + gyro');
+    end
+    if ~isempty(torque_comparison.neural)
+        plot(torque_comparison.time, torque_comparison.neural(:,axis_index), ...
+            'LineWidth',1.5, 'LineStyle','--', 'Color','#D95319', ...
+            'DisplayName',torque_comparison.label);
+    end
+    grid on; grid minor;
+    title(sprintf('Torque %s Axis',axis_names{axis_index}));
+    ylabel('$[Nm]$'); xlabel('Time $[s]$');
+    if PD_CONTROLLER || ~isempty(torque_comparison.neural)
+        legend('show','Location','best');
+    end
+    hold off
 end
-if USE_SNN 
-    plot(result.tout, result.T_control_SNN(:, 2), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
-end
-grid on; grid minor;
-title('\textbf{Torque Eje Y (Pitch)}');
-ylabel("$[N]$")
-xlabel("Time $[s]$")
-legend('$T_{y}$ PID', '$T_{y}$ SNN', 'Location', 'best')
-hold off
-
-%%--- EJE Z ---
-ax4 = subplot(2, 3, 6); % Guardamos el handle en ax4
-hold on
-xline(pt1, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt2, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-xline(pt3, 'Color', 'k', 'LineStyle', '--', 'LineWidth', 1.5, 'HandleVisibility', 'off');
-% Extraemos la columna 3 (Z)
-if PD_CONTROLLER
-    plot(result.tout_control, T_control(:, 3), 'LineWidth', 1.5, 'Color', '#0072BD')
-end
-if USE_SNN
-    plot(result.tout, result.T_control_SNN(:, 3), 'LineWidth', 1.5, 'LineStyle', '--', 'Color', '#D95319')
-end
-grid on; grid minor;
-title('\textbf{Torque Eje Z (Yaw)}');
-ylabel("$[N]$")
-xlabel("Time $[s]$")
-legend('$T_{z}$ PID', '$T_{z}$ SNN', 'Location', 'best')
-hold off
+ax2=torque_axes(1); ax3=torque_axes(2); ax4=torque_axes(3);
 
 %%--- VINCULAR EJES ---
 % Sincroniza el zoom y el desplazamiento solo en el eje del tiempo (x)
 linkaxes([ax1, ax2, ax3, ax4], 'x');
+xlim([0 120])
+%}
 
-exportgraphics(f_ErrorTorque, 'ErrorTorque_PD.pdf', 'ContentType', 'vector');
+exportgraphics(f_ErrorTorque, 'Error_Torque_Fine.pdf', 'ContentType', 'vector');
 
 fprintf("Error y T_control: %.3f s\n", toc)
+
+% =========================================================================
+% >>> [MARCA PARA ALEJANDRO: COMPARACIÓN DE RAMAS P Y D] <<<
+% Anteriormente aquí se llamaba a 'plot_torque_branches' (en Generated/scripts).
+% Si deseas visualizar las ramas proporcional y derivativa por separado,
+% implementa aquí tu gráfico simple sin depender de Generated/scripts.
+% =========================================================================
+%{
+[f_ProportionalTorque, f_DerivativeTorque] = plot_torque_branches( ...
+    torque_comparison, excitation_info.start_times);
+branch_plot_dir = fullfile(fileparts(fileparts(mfilename('fullpath'))), ...
+    'Generated','outputs','torque_comparison');
+if ~isfolder(branch_plot_dir), mkdir(branch_plot_dir); end
+exportgraphics(f_ProportionalTorque, fullfile(branch_plot_dir, ...
+    'Proportional_Torque.pdf'), 'ContentType','vector');
+exportgraphics(f_DerivativeTorque, fullfile(branch_plot_dir, ...
+    'Derivative_Torque.pdf'), 'ContentType','vector');
+%}
+
 %% Representacion de eventos
 % 1. Encontrar los índices lineales donde hay eventos (valores 'true')
 % Al ser lógica, 'find' extrae directamente los 'true' sin necesidad de comparar
@@ -480,13 +529,22 @@ idx_OFF = find(result.Events_OFF);
 % 2. Convertir los índices lineales a coordenadas 3D (y, x, t)
 [y_ON, x_ON, t_ON] = ind2sub(size(result.Events_ON), idx_ON);
 [y_OFF, x_OFF, t_OFF] = ind2sub(size(result.Events_ON), idx_OFF);
+% Convertir indices de mapa a segundos con el tiempo registrado.
+event_time = result.tout(:);
+assert(numel(event_time) == size(result.Events_ON,3) && ...
+       numel(event_time) == size(result.Events_OFF,3), ...
+       'Los mapas de eventos no coinciden con result.tout; utiliza su vector temporal propio.');
+time_ON = event_time(t_ON);
+time_OFF = event_time(t_OFF);
 % 3. Crear la figura y representarla en 3D
 figure('Name', 'Events Image');
-plot3(t_ON, x_ON, y_ON, 'b','LineStyle','none','Marker','.'); %Dividir t/100 si resolucion temporal 10ms
+plot3(time_ON, x_ON, y_ON, 'b','LineStyle','none','Marker','.');
 hold on
-plot3(t_OFF, x_OFF, y_OFF, 'r','LineStyle','none','Marker','.'); %Dividir t/100 si resolucion temporal 10ms
-axis([0,time_max,0,W,0,H]) %Dividir t/100 si resolucion temporal 10ms
-daspect([1 1 1]) %daspect([0.05 1 1])
+plot3(time_OFF, x_OFF, y_OFF, 'r','LineStyle','none','Marker','.');
+axis([event_time(1),event_time(end),0,W,0,H])
+% Proporcion visual independiente de las unidades (segundos y pixeles).
+daspect('auto')
+pbaspect([3 1 H/W])
 set(gca, 'ZDir', 'reverse');
 % set(gca, 'YDir', 'reverse');
 set(gca, 'XDir', 'reverse');

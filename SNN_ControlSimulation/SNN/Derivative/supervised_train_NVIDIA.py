@@ -1,8 +1,8 @@
 """
 CUDA-oriented supervised training for the SNN T_D controller.
 
-Run from the SNN folder or project root:
-    python supervised_train_NVIDIA.py
+Run from project root:
+    python SNN/Derivative/supervised_train_NVIDIA.py
 
 Useful options:
     --resume              resume from checkpoint_last.pth when present

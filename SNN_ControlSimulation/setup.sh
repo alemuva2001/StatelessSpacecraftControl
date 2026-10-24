@@ -17,7 +17,7 @@
 PROJECT_ROOT="/Users/alejandromunozvazquez/Documents/Universidad/MII/POLIMI/2nd Course/Thesis/Code/StatelessSpacecraftControl/SNN_ControlSimulation"
 
 # Folder containing snn_controller.py
-SNN_MODULE_DIR="$PROJECT_ROOT/SNN/Networks"
+SNN_MODULE_DIR="$PROJECT_ROOT/SNN/Derivative"
 
 # Your MATLAB version (run: ls /Applications | grep MATLAB to check)
 MATLAB_APP="/Applications/MATLAB_R2024b.app"

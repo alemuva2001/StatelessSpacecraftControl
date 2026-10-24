@@ -32,8 +32,8 @@ SNN_DIR = Path(__file__).resolve().parent
 
 
 BASE_CONFIG: dict[str, Any] = {
-    "data_dir": "../Data",
-    "weights_dir": "../SNN/Weights",
+    "data_dir": str(SNN_DIR.parents[1] / "Data"),
+    "weights_dir": str(SNN_DIR / "Weights"),
     "seq_length": 20,
     "batch_size": 2,
     "epochs": 200,
@@ -121,7 +121,7 @@ class EpisodeDataset(Dataset):
         total_steps, _, height, width = events.shape
         if height != self.input_size or width != self.input_size:
             events = F.interpolate(
-                events,
+                events.float(),
                 size=(self.input_size, self.input_size),
                 mode="area",
             )
@@ -145,9 +145,9 @@ class EpisodeDataset(Dataset):
         if raw.shape[-1] == 2:
             # h5py reads MATLAB v7.3 arrays with the spatial axes swapped
             # relative to the convention used by Simulink at inference time.
-            return torch.from_numpy(raw).permute(0, 3, 2, 1).float()
+            return torch.from_numpy(raw).permute(0, 3, 2, 1)
         if raw.shape[1] == 2:
-            return torch.from_numpy(raw).float()
+            return torch.from_numpy(raw)
 
         raise ValueError(f"Cannot infer channel axis for events_matrix shape {raw.shape}")
 
@@ -367,14 +367,16 @@ def run_epoch(model, loader, optimizer, criterion, scaler, cfg, device, train: b
                 n_steps = 0
 
                 for step in range(start, end):
-                    x_t = batch_events[:, step].to(device)
+                    # Keep event episodes in their compact stored dtype on the CPU;
+                    # cast only the current frame as it is transferred to the device.
+                    x_t = batch_events[:, step].to(device=device, dtype=torch.float32)
                     target = batch_torques[:, step].to(device)
 
                     with torch.amp.autocast(
                         "cuda",
                         enabled=(device.type == "cuda" and bool(cfg["amp"])),
                     ):
-                        pred, state, _ = model(x_t, state)
+                        pred, state, _ = model(x_t, state, collect_metrics=False)
                         loss_step = torque_loss(pred, target, previous_pred, criterion, cfg)
 
                     previous_pred = pred

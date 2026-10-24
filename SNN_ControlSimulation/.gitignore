@@ -1,4 +1,4 @@
-# Local environments, credentials and caches
+# Entornos virtuales, credenciales y caches locales
 .venv*/
 venv/
 __pycache__/
@@ -10,7 +10,11 @@ __pycache__/
 .env.*
 !.env.example
 
-# Generated MATLAB/Simulink files
+# Requisitos / Dependencias (a peticion de usuario)
+requirements.txt
+**/requirements.txt
+
+# Archivos de MATLAB/Simulink generados / temporales
 slprj/
 *_ert_rtw/
 *_grt_rtw/
@@ -18,30 +22,71 @@ slprj/
 *.asv
 *.autosave
 *.slx.original
+matlab_crash_dump*
 
-# Episodes and generated results. Keep the inference normalization metadata.
-/Data/*
-!/Data/dataset_stats.npz
-/Data2/
-/output/
-/output_webcam/
-*.mat
-*.npy
-*.log
+# Graficas, figuras, imagenes y videos
+*.pdf
+*.PDF
+*.png
+*.PNG
+*.jpg
+*.JPG
+*.jpeg
+*.JPEG
+*.fig
 *.mp4
 *.avi
-*.fig
+*.mov
 
-# Local experiment archives and external reference checkout
+# Documentacion Markdown
+*.md
+*.MD
+
+# Datasets y archivos pesados de datos
+/Data*/
+*.mat
+*.npz
+*.npy
+*.csv
+
+# Logs y carpetas de resultados / salidas
+*.log
+/output/
+/output_webcam/
+/Generated/
+/Network tested architectures/
+
+# Codigo de evaluacion y experimentos generados (MATLAB)
+/Simulation/Control_pilot/
+/Simulation/DVS_validation/
+/Simulation/RL_runs/
+/Simulation/Quaternion_runs/
+/Simulation/evaluate_*.m
+/Simulation/plot_*.m
+/Simulation/final_family_summary.m
+/Simulation/rebuild_final_evaluation.m
+/Simulation/run_neuralD_rl.m
+/Simulation/save_quaternion_run.m
+/Simulation/generate_excitation_profiles.m
+/Simulation/ErrorTorque_con_MSE.m
+/Simulation/run_rl_training.m
+
+# Scripts de evaluacion, diagnostico y pruebas (Python)
+**/evaluate_simulation.py
+**/test_rl_finetune.py
+**/create_legacy_stats.py
+**/evaluate.py
+**/diagnose.py
+**/reporting.py
+**/test_prototype.py
+
+# Backups y referencias antiguas
 /Backup_*/
 /SNN_Version_1(Premeeting)/
 /SNN/neuromorphic_att_est_and_control/
-/SNN/snn_controller_0209.py
-/SNN/visualize_snn.py
+/SNN/Derivative/snn_controller_0209.py
+/SNN/Derivative/visualize_snn.py
 /test_webcam.py
 /webcam_input.py
-/Simulation/run_rl_training.m
 
-# Publish only the selected inference weights, not optimizer/overfit checkpoints.
-/SNN/Weights/*
-!/SNN/Weights/best_model_BEST060926.pth
+# NOTA: Los pesos (*.pth, *.pt) se incluyen para comparar versiones.
